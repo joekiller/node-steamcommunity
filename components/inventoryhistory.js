@@ -75,7 +75,6 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 
 		var i;
 
-		output.startTime = options.startTime
 		output.cursor = historyCursor.time.toString();
 		output.events = [];
 		var events = $('.tradehistoryrow');
@@ -146,7 +145,9 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 
 			output.events.push(event);
 		}
-
+		if(output.events.length > 0) {
+			output.startTime = Math.floor(output.events[0].date.getTime() / 1000);
+		}
 		if (options.resolveVanityURLs) {
 			Async.map(vanityURLs, resolveVanityURL, function(err, results) {
 				if (err) {
