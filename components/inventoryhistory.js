@@ -1,9 +1,9 @@
 var SteamCommunity = require('../index.js');
 var CEconItem = require('../classes/CEconItem.js');
 var SteamID = require('steamid');
-var request = require('request');
 var Cheerio = require('cheerio');
 var Async = require('async');
+const Helpers = require('./helpers.js');
 
 /*
  * Inventory history in a nutshell.
@@ -109,7 +109,7 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 			event.minusEvents = [];
 
 			profileLink = entry.find('.tradehistory_event_description a').attr('href');
-			if(profileLink) {
+			if (profileLink) {
 				if (profileLink.indexOf('/profiles/') != -1) {
 					event.partnerSteamID = new SteamID(profileLink.match(/(\d+)$/)[1]).toString();
 				} else {
@@ -150,7 +150,7 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 			output.startTime = Math.floor(output.events[0].date.getTime() / 1000).toString();
 		}
 		if (options.resolveVanityURLs) {
-			Async.map(vanityURLs, resolveVanityURL, function(err, results) {
+			Async.map(vanityURLs, Helpers.resolveVanityURL, function(err, results) {
 				if (err) {
 					callback(err);
 					return;
@@ -177,20 +177,3 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 		}
 	}, "steamcommunity");
 };
-
-function resolveVanityURL(vanityURL, callback) {
-	request("https://steamcommunity.com/id/" + vanityURL + "/?xml=1", function(err, response, body) {
-		if (err) {
-			callback(err);
-			return;
-		}
-
-		var match = body.match(/<steamID64>(\d+)<\/steamID64>/);
-		if (!match || !match[1]) {
-			callback(new Error("Couldn't find Steam ID"));
-			return;
-		}
-
-		callback(null, {"vanityURL": vanityURL, "steamID": match[1]});
-	});
-}

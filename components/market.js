@@ -1,7 +1,10 @@
 const SteamCommunity = require('../index.js');
-const Cheerio = require('cheerio');
+const CEconItem = require("../classes/CEconItem");
 
+const Cheerio = require('cheerio');
 const Helpers = require('./helpers.js');
+const Async = require("async");
+const SteamID = require("steamid");
 
 /**
  * Get a list of all apps on the market
@@ -384,4 +387,120 @@ SteamCommunity.prototype.packGemSacks = function(assetid, desiredSackCount, call
  */
 SteamCommunity.prototype.unpackGemSacks = function(assetid, sacksToUnpack, callback) {
 	this._gemExchange(assetid, 1000, 1, sacksToUnpack, sacksToUnpack * 1000, callback);
+};
+
+/**
+ * Get my market history
+ * @param {object} options -
+ * @param {function} callback - First argument is null|Error, second is page of responses with assets
+ */
+SteamCommunity.prototype.getMyHistory = function(options, callback) {
+	if (typeof options === 'function') {
+		callback = options;
+		options = {};
+	}
+
+	var qs = []
+
+	if(options.count) {
+		qs.push("count=" + options.count);
+	}
+	if(options.start) {
+		qs.push("start=" + options.start);
+	}
+
+	this.httpRequest({uri: 'https://steamcommunity.com/market/myhistory/render/' +(qs.length > 0 ? '?' + qs.join('&') : ''), json: true}, function (err, response, body) {
+		if (err) {
+			callback(err);
+			return;
+		}
+
+		if (body.success && body.success != SteamCommunity.EResult.OK) {
+			let err = new Error(body.message || SteamCommunity.EResult[body.success]);
+			err.eresult = err.code = body.success;
+			callback(err);
+			return;
+		}
+
+		if (
+			!body.pagesize || !body.total_count
+			|| !(body.start !== undefined && body.start !== null)
+			|| !body.assets || !body.results_html || !body.hovers) {
+			callback(new Error("Malformed response"));
+			return;
+		}
+
+		var $ = Cheerio.load(body.results_html);
+
+		var output = {};
+		var vanityURLs = [];
+		output.listings = [];
+		var listings = $('.market_listing_row');
+
+		var i, listing, entry, rowId, srcSet, match, j, profileLink;
+		for (i = 0; i < listings.length; i++) {
+			entry = $(listings[i]);
+			rowId = entry[0].attribs['id'];
+			srcSet = entry.find(`img[id=${rowId}_image]`).attr('srcset').match(new RegExp(/(.*) 1x, (.*) 2x/));
+			listing = {
+				price: entry.find('.market_listing_price').html().trim(),
+				with: entry.find('.market_listing_whoactedwith a').html() === null ?
+					{name: entry.find('.market_listing_whoactedwith').text().trim()}
+					: {},
+				image: {
+					'src': entry.find(`img[id=${rowId}_image]`).attr('src'),
+					'srcSet': {
+						'1x': srcSet[1],
+						'2x': srcSet[2]
+					}
+				},
+				actedOn: entry.find('.market_listing_listed_date').first().html().trim(),
+				listedOn: entry.find('.market_listing_listed_date').last().html().trim(),
+				name: entry.find('.market_listing_item_name').html(),
+				id: rowId.slice('history_row_'.length),
+				eventType: entry.find('.market_listing_gainorloss').text().trim() === "+" ? "gain" : "loss"
+			}
+			if (entry.find('.market_listing_whoactedwith a').html() !== null) {
+				profileLink = entry.find('.market_listing_whoactedwith a').attr('href');
+				if (profileLink.indexOf('/profiles/') != -1) {
+					listing.with.partnerSteamID = new SteamID(profileLink.match(/(\d+)$/)[1]).toString();
+				} else {
+					listing.with.partnerVanityURL = profileLink.match(/\/([^\/]+)$/)[1];
+					if (options.resolveVanityURLs && vanityURLs.indexOf(listing.with.partnerVanityUR) == -1) {
+						vanityURLs.push(listing.with.partnerVanityURL);
+					}
+				}
+				listing.with.img = entry.find('.market_listing_whoactedwith img').attr('src')
+				listing.with.name = entry.find('.market_listing_whoactedwith_name_block')[0].children[2].data.trim()
+			}
+			match = body.hovers.match(new RegExp("CreateItemHoverFromContainer\\( g_rgAssets, '" + `${rowId}_name` + "', (\\d+), '(\\d+)', '(\\d+|class_\\d+_instance_\\d+|class_\\d+)', (\\d+) \\);"))
+			listing.asset = new CEconItem(body.assets[match[1]][match[2]][match[3]])
+			output.listings.push(listing);
+		}
+		if (options.resolveVanityURLs) {
+			Async.map(vanityURLs, Helpers.resolveVanityURL, function (err, results) {
+				if (err) {
+					callback(err);
+					return;
+				}
+
+				for (i = 0; i < output.listings.length; i++) {
+					if (output.listings[i].with.partnerSteamID || !output.listings[i].with.partnerVanityURL) {
+						continue;
+					}
+
+					// Find the vanity URL
+					for (j = 0; j < results.length; j++) {
+						if (results[j].vanityURL == output.listings[i].with.partnerVanityURL) {
+							output.listings[i].with.partnerSteamID = new SteamID(results[j].steamID).toString();
+							break;
+						}
+					}
+				}
+				callback(null, output);
+			});
+		} else {
+			callback(null, output);
+		}
+	});
 };

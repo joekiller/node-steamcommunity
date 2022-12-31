@@ -1,4 +1,5 @@
 const EResult = require('../resources/EResult.js');
+var request = require('request');
 
 exports.isSteamID = function(input) {
 	var keys = Object.keys(input);
@@ -54,3 +55,20 @@ exports.eresultError = function(eresult) {
 	err.eresult = eresult;
 	return err;
 };
+
+exports.resolveVanityURL = function(vanityURL, callback) {
+	request("https://steamcommunity.com/id/" + vanityURL + "/?xml=1", function(err, response, body) {
+		if (err) {
+			callback(err);
+			return;
+		}
+
+		var match = body.match(/<steamID64>(\d+)<\/steamID64>/);
+		if (!match || !match[1]) {
+			callback(new Error("Couldn't find Steam ID"));
+			return;
+		}
+
+		callback(null, {"vanityURL": vanityURL, "steamID": match[1]});
+	});
+}
