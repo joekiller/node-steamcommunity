@@ -59,22 +59,24 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 			return;
 		}
 
-		var i;
-
-		// See if we've got paging buttons
-		var $paging = $('.inventory_history_nextbtn .pagebtn:not(.disabled)');
-		var href;
-		for (i = 0; i < $paging.length; i++) {
-			href = $paging[i].attribs.href;
-			if (href.match(/prev=1/)) {
-				output.firstTradeTime = new Date(href.match(/after_time=(\d+)/)[1] * 1000);
-				output.firstTradeID = href.match(/after_trade=(\d+)/)[1];
-			} else {
-				output.lastTradeTime = new Date(href.match(/after_time=(\d+)/)[1] * 1000);
-				output.lastTradeID = href.match(/after_trade=(\d+)/)[1];
-			}
+		// Load the cursor
+		var match3 = body.match(/var g_historyCursor = (.*);/);
+		if (!match3) {
+			callback(new Error("Malformed page: no trade found"));
+			return;
 		}
 
+		try {
+			var historyCursor = JSON.parse(match3[1]);
+		} catch (ex) {
+			callback(new Error("Malformed page: no history cursor found"));
+			return;
+		}
+
+		var i;
+
+		output.startTime = options.startTime
+		output.cursor = historyCursor.time.toString();
 		output.events = [];
 		var events = $('.tradehistoryrow');
 
