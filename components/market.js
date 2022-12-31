@@ -435,6 +435,9 @@ SteamCommunity.prototype.getMyHistory = function(options, callback) {
 		var output = {};
 		var vanityURLs = [];
 		output.listings = [];
+		output.pagesize = body.pagesize;
+		output.total_count = body.total_count;
+		output.start = body.start;
 		var listings = $('.market_listing_row');
 
 		var i, listing, entry, rowId, srcSet, match, j, profileLink;
@@ -448,11 +451,8 @@ SteamCommunity.prototype.getMyHistory = function(options, callback) {
 					{name: entry.find('.market_listing_whoactedwith').text().trim()}
 					: {},
 				image: {
-					'src': entry.find(`img[id=${rowId}_image]`).attr('src'),
-					'srcSet': {
-						'1x': srcSet[1],
-						'2x': srcSet[2]
-					}
+					'1x': srcSet[1],
+					'2x': srcSet[2]
 				},
 				actedOn: entry.find('.market_listing_listed_date').first().html().trim(),
 				listedOn: entry.find('.market_listing_listed_date').last().html().trim(),
@@ -474,7 +474,9 @@ SteamCommunity.prototype.getMyHistory = function(options, callback) {
 				listing.with.name = entry.find('.market_listing_whoactedwith_name_block')[0].children[2].data.trim()
 			}
 			match = body.hovers.match(new RegExp("CreateItemHoverFromContainer\\( g_rgAssets, '" + `${rowId}_name` + "', (\\d+), '(\\d+)', '(\\d+|class_\\d+_instance_\\d+|class_\\d+)', (\\d+) \\);"))
-			listing.asset = new CEconItem(body.assets[match[1]][match[2]][match[3]])
+			if(match) {
+				listing.asset = new CEconItem(body.assets[match[1]][match[2]][match[3]])
+			}
 			output.listings.push(listing);
 		}
 		if (options.resolveVanityURLs) {
