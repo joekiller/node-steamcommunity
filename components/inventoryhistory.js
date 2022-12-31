@@ -75,7 +75,7 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 
 		var i;
 
-		output.cursor = historyCursor.time.toString();
+		output.cursor = historyCursor.time ? historyCursor.time.toString() : undefined;
 		output.events = [];
 		var events = $('.tradehistoryrow');
 
@@ -111,7 +111,7 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 			profileLink = entry.find('.tradehistory_event_description a').attr('href');
 			if(profileLink) {
 				if (profileLink.indexOf('/profiles/') != -1) {
-					event.partnerSteamID = new SteamID(profileLink.match(/(\d+)$/)[1]);
+					event.partnerSteamID = new SteamID(profileLink.match(/(\d+)$/)[1]).toString();
 				} else {
 					event.partnerVanityURL = profileLink.match(/\/([^\/]+)$/)[1];
 					if (options.resolveVanityURLs && vanityURLs.indexOf(event.partnerVanityURL) == -1) {
@@ -130,6 +130,7 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 				const contextID = item.attribs['data-contextid'];
 
 				const econItem = {
+					appId,
 					amount: item.attribs['data-amount'],
 					instanceid: item.attribs['data-instanceid']
 				}
@@ -146,7 +147,7 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 			output.events.push(event);
 		}
 		if(output.events.length > 0) {
-			output.startTime = Math.floor(output.events[0].date.getTime() / 1000);
+			output.startTime = Math.floor(output.events[0].date.getTime() / 1000).toString();
 		}
 		if (options.resolveVanityURLs) {
 			Async.map(vanityURLs, resolveVanityURL, function(err, results) {
@@ -163,7 +164,7 @@ SteamCommunity.prototype.getInventoryHistory = function(options, callback) {
 					// Find the vanity URL
 					for (j = 0; j < results.length; j++) {
 						if (results[j].vanityURL == output.events[i].partnerVanityURL) {
-							output.events[i].partnerSteamID = new SteamID(results[j].steamID);
+							output.events[i].partnerSteamID = new SteamID(results[j].steamID).toString();
 							break;
 						}
 					}
