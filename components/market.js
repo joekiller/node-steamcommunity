@@ -425,7 +425,7 @@ SteamCommunity.prototype.getMyHistory = function(options, callback) {
 		if (
 			!body.pagesize || !body.total_count
 			|| !(body.start !== undefined && body.start !== null)
-			|| !body.assets || !body.results_html || !body.hovers) {
+			|| !body.assets || !body.results_html || !(body.hovers !== undefined && body.hovers !== null)) {
 			callback(new Error("Malformed response"));
 			return;
 		}
