@@ -434,18 +434,18 @@ SteamCommunity.prototype.getMyHistory = function(options, callback) {
 
 		var output = {};
 		var vanityURLs = [];
-		output.listings = [];
+		output.events = [];
 		output.pagesize = body.pagesize;
 		output.total_count = body.total_count;
 		output.start = body.start;
-		var listings = $('.market_listing_row');
+		var events = $('.market_listing_row');
 
-		var i, listing, entry, rowId, srcSet, match, j, profileLink;
-		for (i = 0; i < listings.length; i++) {
-			entry = $(listings[i]);
+		var i, event, entry, rowId, srcSet, match, j, profileLink;
+		for (i = 0; i < events.length; i++) {
+			entry = $(events[i]);
 			rowId = entry[0].attribs['id'];
 			srcSet = entry.find(`img[id=${rowId}_image]`).attr('srcset').match(new RegExp(/(.*) 1x, (.*) 2x/));
-			listing = {
+			event = {
 				price: entry.find('.market_listing_price').html().trim(),
 				with: entry.find('.market_listing_whoactedwith a').html() === null ?
 					{name: entry.find('.market_listing_whoactedwith').text().trim()}
@@ -463,21 +463,21 @@ SteamCommunity.prototype.getMyHistory = function(options, callback) {
 			if (entry.find('.market_listing_whoactedwith a').html() !== null) {
 				profileLink = entry.find('.market_listing_whoactedwith a').attr('href');
 				if (profileLink.indexOf('/profiles/') != -1) {
-					listing.with.partnerSteamID = new SteamID(profileLink.match(/(\d+)$/)[1]).toString();
+					event.with.partnerSteamID = new SteamID(profileLink.match(/(\d+)$/)[1]).toString();
 				} else {
-					listing.with.partnerVanityURL = profileLink.match(/\/([^\/]+)$/)[1];
-					if (options.resolveVanityURLs && vanityURLs.indexOf(listing.with.partnerVanityUR) == -1) {
-						vanityURLs.push(listing.with.partnerVanityURL);
+					event.with.partnerVanityURL = profileLink.match(/\/([^\/]+)$/)[1];
+					if (options.resolveVanityURLs && vanityURLs.indexOf(event.with.partnerVanityUR) == -1) {
+						vanityURLs.push(event.with.partnerVanityURL);
 					}
 				}
-				listing.with.img = entry.find('.market_listing_whoactedwith img').attr('src')
-				listing.with.name = entry.find('.market_listing_whoactedwith_name_block')[0].children[2].data.trim()
+				event.with.img = entry.find('.market_listing_whoactedwith img').attr('src')
+				event.with.name = entry.find('.market_listing_whoactedwith_name_block')[0].children[2].data.trim()
 			}
 			match = body.hovers.match(new RegExp("CreateItemHoverFromContainer\\( g_rgAssets, '" + `${rowId}_name` + "', (\\d+), '(\\d+)', '(\\d+|class_\\d+_instance_\\d+|class_\\d+)', (\\d+) \\);"))
 			if(match) {
-				listing.asset = new CEconItem(body.assets[match[1]][match[2]][match[3]])
+				event.asset = new CEconItem(body.assets[match[1]][match[2]][match[3]])
 			}
-			output.listings.push(listing);
+			output.events.push(event);
 		}
 		if (options.resolveVanityURLs) {
 			Async.map(vanityURLs, Helpers.resolveVanityURL, function (err, results) {
@@ -486,15 +486,15 @@ SteamCommunity.prototype.getMyHistory = function(options, callback) {
 					return;
 				}
 
-				for (i = 0; i < output.listings.length; i++) {
-					if (output.listings[i].with.partnerSteamID || !output.listings[i].with.partnerVanityURL) {
+				for (i = 0; i < output.events.length; i++) {
+					if (output.events[i].with.partnerSteamID || !output.events[i].with.partnerVanityURL) {
 						continue;
 					}
 
 					// Find the vanity URL
 					for (j = 0; j < results.length; j++) {
-						if (results[j].vanityURL == output.listings[i].with.partnerVanityURL) {
-							output.listings[i].with.partnerSteamID = new SteamID(results[j].steamID).toString();
+						if (results[j].vanityURL == output.events[i].with.partnerVanityURL) {
+							output.events[i].with.partnerSteamID = new SteamID(results[j].steamID).toString();
 							break;
 						}
 					}
